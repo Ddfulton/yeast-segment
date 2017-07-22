@@ -1,0 +1,7 @@
+preprocessing in fiji
+
+P1
+FFT -> Bandpass Filter
+
+P2
+Only bandpass filter

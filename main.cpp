@@ -10,30 +10,42 @@ using namespace std;
 // http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/bounding_rotated_ellipses/bounding_rotated_ellipses.html
 // https://cci.lbl.gov/cctbx_sources/spotfinder/core_toolbox/hough.cpp
 
+
 Mat src_gray;
-int thresh = 4; // Starting threshold
+int thresh = 50; // Starting threshold
 int max_thresh = 100;
 RNG rng(12345);
 
 // Function declarations
 void thresh_callback(int, void* );
-vector<int> classifyEllipses(vector<RotatedRect> ellipses, vector<int> neighbor_counts);
-bool hasNeighbor(RotatedRect ellipse, vector<RotatedRect> ellipses);
+vector<int> countLowHangingCousins(vector<RotatedRect> ellipse_set, vector<int> empty_vector);
+void processImage(string filename);
+void thresh_callback(int, void* );
 
 
 int main( int argc, const char** argv )
 {
-//    String filename = "/Users/derekfulton/Documents/yeast/cv_yeast/cv_yeast/transes/T10.tif";
-    String filename = argv[1];
-    src_gray = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+    processImage("/Users/derekfulton/Documents/yeast/cv_yeast/cv_yeast/yeast_testing/big_tiffs_from_josh/big_tiff_1_BP_FijiEdge.tif");
 
+
+
+
+    waitKey(0);
+    
+    return(0);
+}
+
+void processImage(string filename) {
+    
+    src_gray = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+    
     blur( src_gray, src_gray, Size(1,1) ); // Gaussian blur
     
-    String source_window = "Source";
+    string source_window = "Source";
     
-//    namedWindow( source_window, CV_WINDOW_AUTOSIZE );
-//    
-//    imshow( source_window, src_gray);
+    //    namedWindow( source_window, CV_WINDOW_AUTOSIZE );
+    //
+    //    imshow( source_window, src_gray);
     
     Mat canny_output;
     vector<vector<Point> > contours;
@@ -64,7 +76,7 @@ int main( int argc, const char** argv )
             float min_area = 200;
             float max_area = 30000.00;
             
-            if(aspect_ratio < 0.4 || area < 2000 || prospectiveEllipse.size.height > 130){
+            if(aspect_ratio < 0.4 || area < 400 || prospectiveEllipse.size.height > 130){
                 // Doesn't make the cut
             }
             else {
@@ -74,7 +86,7 @@ int main( int argc, const char** argv )
         }
     }
     
-    Mat overlay = imread(argv[1], CV_LOAD_IMAGE_COLOR);
+    Mat overlay = imread(filename, CV_LOAD_IMAGE_COLOR);
     
     
     vector<int> initial_counts(minEllipse.size());
@@ -84,20 +96,18 @@ int main( int argc, const char** argv )
         initial_counts[i] = 0;
     }
     
-    vector<int> neighbor_counts = classifyEllipses(minEllipse, initial_counts);
+    vector<int> neighbor_counts = countLowHangingCousins(minEllipse, initial_counts);
+    
+    for (int i = 0; i < neighbor_counts.size(); i++) {
+    }
+    
     Scalar color;
     
     for( int i = 0; i < minEllipse.size(); i++) {
-        
-        
-        
-        
-        //            // Contour
-        //            drawContours(canny_drawing, contours, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-        //
-        // Ellipse
         if (neighbor_counts[i] == 0) {
-            color = Scalar(1, 0, 0); // blue
+            color = Scalar(255, 0, 0); // blue
+            ellipse(overlay, minEllipse[i], color, 2, 8);
+            
         }
         else {
             color = Scalar(0, 255, 0); // green
@@ -109,7 +119,8 @@ int main( int argc, const char** argv )
         //        putText(overlay, label, cvPoint(minEllipse[i].center.x, minEllipse[i].center.y),
         //                FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
         
-        //            ellipse(overlay, minEllipse[i], color, 2, 8);
+        
+        
         
         
         //            // Rotated rectangle
@@ -121,79 +132,46 @@ int main( int argc, const char** argv )
     }
     
     // Show everything
-    namedWindow( "Canny Contours", CV_WINDOW_FREERATIO );
-    imshow( "Canny Contours", overlay );
-    //    namedWindow( "Canny", CV_WINDOW_FREERATIO );
-    //    imshow( "Canny", canny_output);
-
-    waitKey(0);
+    string title = filename.substr(filename.length() - 10, filename.length());
+    namedWindow( title, CV_WINDOW_FREERATIO );
+    imshow( title, overlay );
     
-    return(0);
+//    namedWindow( "Canny", CV_WINDOW_FREERATIO );
+//    imshow( "Canny", canny_output);
+}
+
+vector<int> countLowHangingCousins(vector<RotatedRect> ellipse_set, vector<int> neighbor_counts) {
+    for (int i = 0; i < ellipse_set.size(); i++) {
+        int current_count = 0;
+        RotatedRect E = ellipse_set[i];
+        
+        for (int j = 0; j < ellipse_set.size(); j++) {
+            
+            float dist = sqrt( pow(E.center.x - ellipse_set[j].center.x, 2) + pow((E.center.y - ellipse_set[j].center.y), 2));
+            
+            if (dist == 0) {
+                // Same ellipse
+            }
+            else {
+                if (dist < 10) {
+                    current_count = current_count + 1;
+                }
+                else {
+                    continue;
+                }
+            }
+        
+        }
+        
+        neighbor_counts[i] = current_count;
+    }
+    return neighbor_counts;
 }
 
 /** @function thresh_callback */
-void thresh_callback(int, void* )
-{
-    // Declare
+void thresh_callback(int, void* ){};
 
-    
-}
-
-vector<int> classifyEllipses(vector<RotatedRect> ellipses, vector<int> neighbor_counts) {
-    vector<Scalar> colors (ellipses.size());
-    // (BLUE, GREEN, RED)
-//    Scalar red = Scalar(0, 0, 255);
-//    Scalar green = Scalar(0, 255, 0);
-//    Scalar blue = Scalar(255, 0, 0);
-    for (int i = 0; i < ellipses.size(); i++) {
-        RotatedRect E1 = ellipses[i];
-        if (hasNeighbor(E1, ellipses)) { // If it meets the neighbor count criteria
-            neighbor_counts[i] = neighbor_counts[i] + 1;
-            continue;
-        }
-        else {
-            continue;
-        }
-    }
-    
-    return neighbor_counts;
-    
-}
-
-bool hasNeighbor(RotatedRect ellipse, vector<RotatedRect> ellipses) {
-    bool result = false;
-    float height = ellipse.size.height;
-    float width = ellipse.size.width;
-    Point2f center = ellipse.center;
-    float angle = ellipse.angle;
-    
-    for (int i = 0; i < ellipses.size(); i++) {
-        float curr_height = ellipses[i].size.height;
-        float curr_width = ellipses[i].size.width;
-        Point2f curr_center = ellipses[i].center;
-        float curr_angle = ellipses[i].angle;
-        float dist = sqrt( (ellipse.center.x - ellipses[i].center.x)*(ellipse.center.x - ellipses[i].center.x) + (ellipse.center.y - ellipses[i].center.y)*(ellipse.center.y - ellipses[i].center.y) );
-        float unweighted_difference_index = (1/4)*abs(height - curr_height) + (1/4)*abs(width - curr_width) + 10*dist + 10*abs(angle - curr_angle);
-        
-        
-        
-        if (ellipse.center == ellipses[i].center) { // If it's the same ellipse
-            continue;
-        }
-        else {
-            if ( unweighted_difference_index < 500) { // If it's 10 away and E1/E2 are relatively similar
-                result = true;
-                continue;
-            }
-            else {
-                continue;
-            }
-        }
-        
-        
-    }
-    return result;
-}
+// ******************* ORIGINAL SCRIPT ENDS HERE ***************** //
 
 
 
@@ -207,51 +185,15 @@ bool hasNeighbor(RotatedRect ellipse, vector<RotatedRect> ellipses) {
 
 
 
-/*
- THIS IS THE ITALIAN GUY'S ALGORITHM
+
+
+
+/* This code will help calculate the Sobel derivative for
+ * each edge pixel. It will come in handy later after we
+ * have removed the low hanging fruit and need to identify
+ * smaller buds in the yeast.
  */
 
-//#include "opencv2/imgproc.hpp"
-//#include "opencv2/highgui.hpp"
-//#include <stdlib.h>
-//#include <stdio.h>
-//#include <iostream>
-//#include <algorithm>
-//#include <vector>
-//#include <stack>
-//
-//using namespace cv;
-//using namespace std;
-//
-//int kernel_size = 3;
-//int lowThreshold = 11;
-//
-//
-//
-//
-///** @function main */
-//int main( int argc, char** argv )
-//{
-//    
-//    Mat src, src_gray;
-//    Mat grad;
-//    int scale = 1;
-//    int delta = 0;
-//    int ddepth = CV_16S;
-//    
-//    int c;
-//    
-//    /// Load an image
-//    src = imread( "/Users/derekfulton/Documents/yeast/cv_yeast/cv_yeast/T5.jpg" );
-//    
-//    if( !src.data )
-//    { return -1; }
-//    
-//    GaussianBlur( src, src, Size(3,3), 0, 0, BORDER_DEFAULT );
-//    
-//    /// Convert it to gray
-//    cvtColor( src, src_gray, COLOR_RGB2GRAY );
-//    
 //    // Scoop edges
 //    Mat edges;
 //    Canny( src_gray, edges, lowThreshold, lowThreshold*3, kernel_size );
@@ -278,26 +220,4 @@ bool hasNeighbor(RotatedRect ellipse, vector<RotatedRect> ellipses) {
 //    
 //    Mat dydx;
 //    dydx = slopes < 1;
-//    
-//    Mat labels;
-//    connectedComponents(edges, labels, 8, CV_32S);
-//    Mat labels_binary;
-//    labels_binary = labels > 1;
-//    std::cout << labels_binary << std::endl;
-//
-//    
-//    namedWindow("DYDX", CV_WINDOW_AUTOSIZE);
-//    imshow("DYDX", dydx);
-//    
-//    namedWindow("Canny", CV_WINDOW_AUTOSIZE);
-//    imshow("Canny", edges);
-//    
-//
-//    namedWindow("Labels", CV_WINDOW_AUTOSIZE);
-//    imshow("Labels", labels);
-//    
-//    
-//    waitKey(0);
-//    
-//    return 0;
-//}
+
